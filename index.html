@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finanzas CEPPE — Registrar</title>
+<style>
+  :root{
+    --bg:#f2f1ee;
+    --card:#ffffff;
+    --ink:#111111;
+    --muted:#8a8a8a;
+    --line:#e7e6e2;
+    --red:#d64545;
+    --red-bg:#fbe9e9;
+    --green:#2e7d55;
+    --green-bg:#e8f3ec;
+    --azul:#037a9c;
+    --radius:18px;
+    --mono:"SF Mono",ui-monospace,"Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);
+    font-family:var(--sans);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    padding:28px 20px 60px;
+    max-width:520px;
+    margin:0 auto;
+  }
+  .head h1{font-size:26px;font-weight:700;letter-spacing:-.3px}
+  .head p{font-family:var(--mono);font-size:13px;color:var(--muted);margin-top:4px;letter-spacing:.2px}
+
+  .card{
+    background:var(--card);
+    border-radius:var(--radius);
+    padding:22px;
+    margin-top:22px;
+    box-shadow:0 1px 2px rgba(0,0,0,.03);
+  }
+
+  label.lbl{
+    display:block;
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.8px;
+    color:var(--muted);
+    text-transform:uppercase;
+    margin:0 0 9px;
+  }
+  .field{margin-bottom:20px}
+  .field:last-child{margin-bottom:0}
+
+  /* segmented toggle */
+  .seg{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    background:#f4f3f0;
+    border-radius:12px;
+    padding:4px;
+    gap:4px;
+  }
+  .seg button{
+    font-family:var(--sans);
+    font-size:15px;
+    font-weight:600;
+    padding:13px 0;
+    border:none;
+    border-radius:9px;
+    background:transparent;
+    color:var(--muted);
+    cursor:pointer;
+    transition:.12s;
+  }
+  .seg button.on-gasto{background:var(--red-bg);color:var(--red)}
+  .seg button.on-ingreso{background:var(--green-bg);color:var(--green)}
+
+  /* chip grid for unidad / categoria */
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{
+    font-family:var(--sans);
+    font-size:14px;
+    font-weight:500;
+    padding:10px 15px;
+    border:1px solid var(--line);
+    border-radius:11px;
+    background:#fff;
+    color:#333;
+    cursor:pointer;
+    transition:.12s;
+  }
+  .chip:hover{border-color:#cfceca}
+  .chip.sel{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  input[type=text], input[type=number], select{
+    width:100%;
+    font-family:var(--sans);
+    font-size:16px;
+    padding:14px 15px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:#fff;
+    color:var(--ink);
+    outline:none;
+    transition:.12s;
+  }
+  input:focus, select:focus{border-color:#b9b8b4}
+  input::placeholder{color:#c2c1bd}
+
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+  .monto-wrap{position:relative}
+  .monto-wrap span{
+    position:absolute;left:15px;top:50%;transform:translateY(-50%);
+    color:var(--muted);font-size:16px;font-weight:600;pointer-events:none
+  }
+  .monto-wrap input{padding-left:30px;font-weight:600;font-size:18px}
+
+  .hidden{display:none}
+
+  .submit{
+    width:100%;
+    font-family:var(--sans);
+    font-size:16px;
+    font-weight:600;
+    color:#fff;
+    background:var(--ink);
+    border:none;
+    border-radius:14px;
+    padding:17px 0;
+    margin-top:6px;
+    cursor:pointer;
+    transition:.12s;
+  }
+  .submit:active{transform:scale(.99)}
+  .submit:disabled{opacity:.35;cursor:not-allowed}
+
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(120px);
+    background:var(--ink);color:#fff;font-size:14px;font-weight:500;
+    padding:14px 22px;border-radius:30px;box-shadow:0 6px 20px rgba(0,0,0,.18);
+    transition:transform .28s cubic-bezier(.2,.8,.2,1);z-index:50;
+    display:flex;align-items:center;gap:9px
+  }
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+
+  .foot{font-family:var(--mono);font-size:11px;color:#b8b7b3;text-align:center;margin-top:26px;letter-spacing:.3px}
+  .foot a{color:var(--azul);text-decoration:none}
+</style>
+</head>
+<body>
+
+  <div class="head">
+    <h1>Finanzas CEPPE</h1>
+    <p>Registrar movimiento</p>
+  </div>
+
+  <div class="card">
+
+    <!-- TIPO -->
+    <div class="field">
+      <label class="lbl">Tipo de movimiento</label>
+      <div class="seg" id="seg">
+        <button type="button" data-tipo="gasto"   class="on-gasto">↓ Gasto</button>
+        <button type="button" data-tipo="ingreso">↑ Ingreso</button>
+      </div>
+    </div>
+
+    <!-- UNIDAD -->
+    <div class="field">
+      <label class="lbl">Unidad</label>
+      <select id="unidad">
+        <option value="">Seleccionar…</option>
+        <option value="CEPPE Media">CEPPE Media</option>
+        <option value="CEPPE Escuela">CEPPE Escuela</option>
+        <option value="Dir Ventas PHK">Dir Ventas PHK</option>
+        <option value="Coaching William">Coaching William</option>
+        <option value="Coaching Rebeca">Coaching Rebeca</option>
+        <option value="J23">J23 (Colegio Juan 23)</option>
+        <option value="Mercado Libre">Mercado Libre</option>
+        <option value="Casa / Familia RR">Casa / Familia RR</option>
+      </select>
+    </div>
+
+    <!-- CATEGORIA (solo Casa) -->
+    <div class="field hidden" id="catField">
+      <label class="lbl">Categoría</label>
+      <div class="chips" id="categorias">
+        <button type="button" class="chip" data-cat="Mercado">Mercado</button>
+        <button type="button" class="chip" data-cat="Comida fuera">Comida fuera</button>
+        <button type="button" class="chip" data-cat="Gasolina / Transporte">Gasolina / Transporte</button>
+        <button type="button" class="chip" data-cat="Carro">Carro</button>
+        <button type="button" class="chip" data-cat="Salud / Farmacia">Salud / Farmacia</button>
+        <button type="button" class="chip" data-cat="Servicios">Servicios</button>
+        <button type="button" class="chip" data-cat="Personal">Personal</button>
+        <button type="button" class="chip" data-cat="Hogar">Hogar</button>
+        <button type="button" class="chip" data-cat="Otros">Otros</button>
+      </div>
+    </div>
+
+    <!-- MONTO + MONEDA -->
+    <div class="field">
+      <div class="row">
+        <div>
+          <label class="lbl">Monto</label>
+          <div class="monto-wrap">
+            <span id="curSign">$</span>
+            <input type="number" id="monto" placeholder="0.00" inputmode="decimal" step="0.01">
+          </div>
+        </div>
+        <div>
+          <label class="lbl">Moneda</label>
+          <select id="moneda">
+            <option value="USD">USD</option>
+            <option value="BCV dólar">BCV dólar</option>
+            <option value="Euro">Euro BCV</option>
+            <option value="Binance">Binance / USDT</option>
+            <option value="Bs">Bolívares</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- CUENTA -->
+    <div class="field">
+      <label class="lbl">Cuenta</label>
+      <select id="cuenta">
+        <option value="">Seleccionar…</option>
+        <option>Zelle / Chase</option>
+        <option>Banesco</option>
+        <option>Bancamiga</option>
+        <option>Venezolano de Crédito</option>
+        <option>Kontigo</option>
+        <option>Binance</option>
+        <option>Zinli</option>
+        <option>Cash</option>
+      </select>
+    </div>
+
+    <!-- MOTIVO -->
+    <div class="field">
+      <label class="lbl">Motivo</label>
+      <input type="text" id="motivo" placeholder="Ej: Cagi, Kromi, Gasolina, Pago Luis…">
+    </div>
+
+    <button class="submit" id="submit" disabled>Registrar movimiento</button>
+  </div>
+
+  <p class="foot">CEPPE Group · guarda en Google Sheets · <a href="dashboard.html">ver dashboard →</a></p>
+
+  <div class="toast" id="toast"><span class="dot"></span><span id="toastMsg">Movimiento registrado</span></div>
+
+<script>
+// ---- CONFIG ----
+// Cuando el Sheet esté listo, pega aquí la URL del Apps Script Web App:
+const SHEET_ENDPOINT = "https://script.google.com/macros/s/AKfycbw-5SF_I_ES5gFyUIC7KmYxQIuoZzWMP53TS9nHi5M-nswAiDBUI9lStqYs71r7rGnH/exec";
+
+const state = { tipo:"gasto", unidad:null, categoria:null };
+
+const segBtns   = document.querySelectorAll("#seg button");
+const uniSel    = document.getElementById("unidad");
+const catBtns   = document.querySelectorAll("#categorias .chip");
+const catField  = document.getElementById("catField");
+const submitBtn = document.getElementById("submit");
+const curSign   = document.getElementById("curSign");
+const monedaSel = document.getElementById("moneda");
+
+// tipo
+segBtns.forEach(b=>b.addEventListener("click",()=>{
+  state.tipo=b.dataset.tipo;
+  segBtns.forEach(x=>x.classList.remove("on-gasto","on-ingreso"));
+  b.classList.add(state.tipo==="gasto"?"on-gasto":"on-ingreso");
+  validate();
+}));
+
+// unidad (desplegable)
+uniSel.addEventListener("change",()=>{
+  state.unidad=uniSel.value;
+  // categoría solo para Casa
+  if(state.unidad==="Casa / Familia RR"){
+    catField.classList.remove("hidden");
+  }else{
+    catField.classList.add("hidden");
+    state.categoria=null;
+    catBtns.forEach(x=>x.classList.remove("sel"));
+  }
+  validate();
+});
+
+// categoria
+catBtns.forEach(b=>b.addEventListener("click",()=>{
+  state.categoria=b.dataset.cat;
+  catBtns.forEach(x=>x.classList.remove("sel"));
+  b.classList.add("sel");
+  validate();
+}));
+
+// moneda -> signo
+monedaSel.addEventListener("change",()=>{
+  curSign.textContent = monedaSel.value==="Euro" ? "€" : (monedaSel.value==="Bs" ? "Bs" : "$");
+});
+
+["monto","cuenta","motivo"].forEach(id=>
+  document.getElementById(id).addEventListener("input",validate));
+
+function validate(){
+  const monto  = parseFloat(document.getElementById("monto").value);
+  const cuenta = document.getElementById("cuenta").value;
+  const catOk  = state.unidad!=="Casa / Familia RR" || !!state.categoria;
+  const ok = state.unidad && catOk && monto>0 && cuenta;
+  submitBtn.disabled = !ok;
+}
+
+submitBtn.addEventListener("click", async ()=>{
+  const payload = {
+    fecha: new Date().toISOString(),
+    tipo: state.tipo,
+    unidad: state.unidad,
+    categoria: state.categoria || "",
+    monto: parseFloat(document.getElementById("monto").value),
+    moneda: monedaSel.value,
+    cuenta: document.getElementById("cuenta").value,
+    motivo: document.getElementById("motivo").value.trim()
+  };
+
+  submitBtn.disabled=true; submitBtn.textContent="Guardando…";
+
+  try{
+    if(SHEET_ENDPOINT){
+      await fetch(SHEET_ENDPOINT,{
+        method:"POST",
+        mode:"no-cors",
+        headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body:JSON.stringify(payload)
+      });
+    }else{
+      await new Promise(r=>setTimeout(r,500)); // demo sin endpoint
+    }
+    showToast(state.tipo==="ingreso"?"Ingreso registrado":"Gasto registrado");
+    resetForm();
+  }catch(e){
+    showToast("Error al guardar",true);
+  }
+  submitBtn.textContent="Registrar movimiento";
+});
+
+function resetForm(){
+  document.getElementById("monto").value="";
+  document.getElementById("cuenta").value="";
+  document.getElementById("motivo").value="";
+  uniSel.value="";
+  state.unidad=null;
+  state.categoria=null;
+  catField.classList.add("hidden");
+  catBtns.forEach(x=>x.classList.remove("sel"));
+  validate();
+}
+
+let toastTimer;
+function showToast(msg,err){
+  const t=document.getElementById("toast");
+  document.getElementById("toastMsg").textContent=msg;
+  t.querySelector(".dot").style.background = err ? "var(--red)" : "var(--green)";
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove("show"),2200);
+}
+
+// estado inicial
+document.querySelector('[data-tipo="gasto"]').classList.add("on-gasto");
+</script>
+</body>
+</html>
