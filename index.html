@@ -120,6 +120,13 @@
 
   .hidden{display:none}
 
+  .internal-toggle{display:flex;align-items:flex-start;gap:11px;cursor:pointer;
+    background:#faf9f7;border:1px solid var(--line);border-radius:12px;padding:14px}
+  .internal-toggle input{margin-top:2px;width:18px;height:18px;flex-shrink:0;cursor:pointer;accent-color:var(--azul)}
+  .internal-txt{display:flex;flex-direction:column;gap:3px}
+  .internal-txt strong{font-size:14px;font-weight:600}
+  .internal-txt small{font-size:12px;color:var(--muted);line-height:1.35}
+
   .submit{
     width:100%;
     font-family:var(--sans);
@@ -182,6 +189,12 @@
         <option value="J23">J23 (Colegio Juan 23)</option>
         <option value="Mercado Libre">Mercado Libre</option>
         <option value="Casa / Familia RR">Casa / Familia RR</option>
+        <optgroup label="Personal">
+          <option value="William Rodríguez">William Rodríguez</option>
+          <option value="Rebeca Rodríguez">Rebeca Rodríguez</option>
+          <option value="Luis Rodríguez">Luis Rodríguez</option>
+          <option value="Becca Rodríguez">Becca Rodríguez</option>
+        </optgroup>
       </select>
     </div>
 
@@ -244,6 +257,17 @@
     <div class="field">
       <label class="lbl">Motivo</label>
       <input type="text" id="motivo" placeholder="Ej: Cagi, Kromi, Gasolina, Pago Luis…">
+    </div>
+
+    <!-- MOVIMIENTO INTERNO -->
+    <div class="field internal-field" id="internoField">
+      <label class="internal-toggle">
+        <input type="checkbox" id="interno">
+        <span class="internal-txt">
+          <strong>Movimiento interno</strong>
+          <small>Plata que se mueve dentro de la familia (ej: tu pago). No suma al total de CEPPE Group.</small>
+        </span>
+      </label>
     </div>
 
     <button class="submit" id="submit" disabled>Registrar movimiento</button>
@@ -323,7 +347,8 @@ submitBtn.addEventListener("click", async ()=>{
     monto: parseFloat(document.getElementById("monto").value),
     moneda: monedaSel.value,
     cuenta: document.getElementById("cuenta").value,
-    motivo: document.getElementById("motivo").value.trim()
+    motivo: document.getElementById("motivo").value.trim(),
+    interno: document.getElementById("interno").checked ? "si" : ""
   };
 
   submitBtn.disabled=true; submitBtn.textContent="Guardando…";
@@ -356,6 +381,7 @@ function resetForm(){
   state.categoria=null;
   catField.classList.add("hidden");
   catBtns.forEach(x=>x.classList.remove("sel"));
+  document.getElementById("interno").checked=false;
   validate();
 }
 
