@@ -158,6 +158,9 @@ async function cargar(){
       r.monto = Number(r.monto)||0;
       r.monto_usd = Number(r.monto_usd)||r.monto;
       r.fecha = String(r.fecha).slice(0,10);
+      // tolera encabezado "interno" o "Interno"
+      const val = r.interno !== undefined ? r.interno : r.Interno;
+      r.interno = String(val||'').toLowerCase().trim()==='si';
     });
     poblarUnidades();
     setRangoDefault();
@@ -214,7 +217,8 @@ function filtrar(){
     r.tipo===tab &&
     (!u || r.unidad===u) &&
     (!d || r.fecha>=d) &&
-    (!h || r.fecha<=h)
+    (!h || r.fecha<=h) &&
+    (u || !r.interno)   // en vista Group (sin unidad) se excluyen los movimientos internos
   );
 }
 
@@ -235,7 +239,7 @@ function render(){
   const u=document.getElementById('fUnidad').value;
   const d=document.getElementById('fDesde').value;
   const h=document.getElementById('fHasta').value;
-  const enRango=r=>(!u||r.unidad===u)&&(!d||r.fecha>=d)&&(!h||r.fecha<=h);
+  const enRango=r=>(!u||r.unidad===u)&&(!d||r.fecha>=d)&&(!h||r.fecha<=h)&&(u||!r.interno);
   const totIng=DATA.filter(r=>r.tipo==='ingreso'&&enRango(r)).reduce((a,r)=>a+r.monto_usd,0);
   const totGas=DATA.filter(r=>r.tipo==='gasto'&&enRango(r)).reduce((a,r)=>a+r.monto_usd,0);
   const bal=totIng-totGas;
