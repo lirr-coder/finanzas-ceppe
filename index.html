@@ -256,10 +256,37 @@
       </select>
     </div>
 
-    <!-- MOTIVO -->
-    <div class="field">
+    <!-- MOTIVO (texto libre, por defecto) -->
+    <div class="field" id="motivoField">
       <label class="lbl">Motivo</label>
       <input type="text" id="motivo" placeholder="Ej: Cagi, Kromi, Gasolina, Pago Luis…">
+    </div>
+
+    <!-- UNIDAD DE ORIGEN (solo Luis Rodríguez + Ingreso) -->
+    <div class="field hidden" id="origenField">
+      <label class="lbl">Unidad de origen</label>
+      <select id="origen">
+        <option value="">Seleccionar…</option>
+        <option value="CEPPE Media">CEPPE Media</option>
+        <option value="Otro">Otro</option>
+      </select>
+    </div>
+
+    <!-- CLIENTE + SERVICIO (desplegable único: CEPPE Media + Ingreso, o Luis+Ingreso origen Media) -->
+    <div class="field hidden" id="clienteField">
+      <label class="lbl">Cliente</label>
+      <select id="cliente">
+        <option value="">Seleccionar…</option>
+        <option>Teque Joe - Ads</option>
+        <option>TAI - Ads</option>
+        <option>CAGI - Ads</option>
+        <option>Humos - Ads</option>
+        <option>Dra Yhani - Ads</option>
+        <option>Lemaire Adames - Ads</option>
+        <option>Agua Azul - Ads</option>
+        <option>Gilber - Ads</option>
+        <option>Yannet - Ads</option>
+      </select>
     </div>
 
     <!-- MOVIMIENTO INTERNO -->
@@ -291,16 +318,52 @@ const segBtns   = document.querySelectorAll("#seg button");
 const uniSel    = document.getElementById("unidad");
 const catBtns   = document.querySelectorAll("#categorias .chip");
 const catField  = document.getElementById("catField");
+const clienteField = document.getElementById("clienteField");
+const motivoField  = document.getElementById("motivoField");
+const origenField  = document.getElementById("origenField");
+const clienteSel   = document.getElementById("cliente");
+const origenSel    = document.getElementById("origen");
 const submitBtn = document.getElementById("submit");
 const curSign   = document.getElementById("curSign");
 const monedaSel = document.getElementById("moneda");
+
+// Controla qué campos se muestran según unidad + tipo
+function toggleCliente(){
+  const esMediaIngreso = state.unidad==="CEPPE Media" && state.tipo==="ingreso";
+  const esLuisIngreso  = state.unidad==="Luis Rodríguez" && state.tipo==="ingreso";
+
+  // Unidad de origen: solo Luis + Ingreso
+  if(esLuisIngreso){
+    origenField.classList.remove("hidden");
+  }else{
+    origenField.classList.add("hidden");
+    origenSel.value="";
+  }
+
+  // Cliente: Media+Ingreso directo, o Luis+Ingreso con origen = CEPPE Media
+  const mostrarCliente = esMediaIngreso || (esLuisIngreso && origenSel.value==="CEPPE Media");
+  if(mostrarCliente){
+    clienteField.classList.remove("hidden");
+    motivoField.classList.add("hidden");
+  }else{
+    clienteField.classList.add("hidden");
+    clienteSel.value="";
+    // motivo libre: visible siempre, EXCEPTO en Luis+Ingreso cuando aún no eligió origen
+    if(esLuisIngreso && !origenSel.value){
+      motivoField.classList.add("hidden");   // todavía no elige origen, no mostramos motivo
+    }else{
+      motivoField.classList.remove("hidden"); // incluye Luis+Ingreso+origen "Otro"
+    }
+  }
+  validate();
+}
 
 // tipo
 segBtns.forEach(b=>b.addEventListener("click",()=>{
   state.tipo=b.dataset.tipo;
   segBtns.forEach(x=>x.classList.remove("on-gasto","on-ingreso"));
   b.classList.add(state.tipo==="gasto"?"on-gasto":"on-ingreso");
-  validate();
+  toggleCliente();
 }));
 
 // unidad (desplegable)
@@ -314,8 +377,11 @@ uniSel.addEventListener("change",()=>{
     state.categoria=null;
     catBtns.forEach(x=>x.classList.remove("sel"));
   }
-  validate();
+  toggleCliente();
 });
+
+clienteSel.addEventListener("change",validate);
+origenSel.addEventListener("change",toggleCliente);
 
 // categoria
 catBtns.forEach(b=>b.addEventListener("click",()=>{
@@ -337,21 +403,56 @@ function validate(){
   const monto  = parseFloat(document.getElementById("monto").value);
   const cuenta = document.getElementById("cuenta").value;
   const catOk  = state.unidad!=="Casa / Familia RR" || !!state.categoria;
-  const ok = state.unidad && catOk && monto>0 && cuenta;
+  const esMediaIngreso = state.unidad==="CEPPE Media" && state.tipo==="ingreso";
+  const esLuisIngreso  = state.unidad==="Luis Rodríguez" && state.tipo==="ingreso";
+  // Media+Ingreso: cliente obligatorio
+  // Luis+Ingreso: origen obligatorio; y si origen=Media, cliente obligatorio
+  let clienteOk = true;
+  if(esMediaIngreso) clienteOk = !!clienteSel.value;
+  if(esLuisIngreso){
+    if(!origenSel.value) clienteOk = false;
+    else if(origenSel.value==="CEPPE Media" && !clienteSel.value) clienteOk = false;
+  }
+  const ok = state.unidad && catOk && clienteOk && monto>0 && cuenta;
   submitBtn.disabled = !ok;
 }
 
 submitBtn.addEventListener("click", async ()=>{
+  const esMediaIngreso = state.unidad==="CEPPE Media" && state.tipo==="ingreso";
+  const esLuisIngreso  = state.unidad==="Luis Rodríguez" && state.tipo==="ingreso";
+  const cliente = clienteSel.value;   // ya viene como "Cliente - Ads"
+  const origen  = origenSel.value;
+
+  let categoria = state.categoria || "";
+  let motivo = document.getElementById("motivo").value.trim();
+  let interno = document.getElementById("interno").checked ? "si" : "";
+
+  if(esMediaIngreso){
+    categoria = cliente;
+    motivo = cliente;
+  }
+  if(esLuisIngreso){
+    interno = "si"; // los ingresos de Luis siempre son internos
+    if(origen==="CEPPE Media"){
+      categoria = cliente;              // "Cliente - Ads" para agrupar
+      motivo = cliente;
+    }else{
+      // origen "Otro": usa lo que escribió, o genérico si lo dejó vacío
+      const escrito = document.getElementById("motivo").value.trim();
+      motivo = escrito ? escrito + " (Otro)" : "Ingreso (Otro)";
+    }
+  }
+
   const payload = {
     fecha: new Date().toISOString(),
     tipo: state.tipo,
     unidad: state.unidad,
-    categoria: state.categoria || "",
+    categoria: categoria,
     monto: parseFloat(document.getElementById("monto").value),
     moneda: monedaSel.value,
     cuenta: document.getElementById("cuenta").value,
-    motivo: document.getElementById("motivo").value.trim(),
-    interno: document.getElementById("interno").checked ? "si" : ""
+    motivo: motivo,
+    interno: interno
   };
 
   submitBtn.disabled=true; submitBtn.textContent="Guardando…";
@@ -384,6 +485,11 @@ function resetForm(){
   state.categoria=null;
   catField.classList.add("hidden");
   catBtns.forEach(x=>x.classList.remove("sel"));
+  clienteSel.value="";
+  clienteField.classList.add("hidden");
+  origenSel.value="";
+  origenField.classList.add("hidden");
+  motivoField.classList.remove("hidden");
   document.getElementById("interno").checked=false;
   validate();
 }
