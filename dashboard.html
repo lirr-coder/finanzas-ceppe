@@ -160,7 +160,8 @@ async function cargar(){
     DATA.forEach(r=>{
       r.monto = Number(r.monto)||0;
       r.monto_usd = Number(r.monto_usd)||r.monto;
-      r.fecha = String(r.fecha).slice(0,10);
+      r.fechaFull = String(r.fecha);           // fecha+hora completa para ordenar
+      r.fecha = String(r.fecha).slice(0,10);   // solo día para mostrar y filtrar
       // tolera encabezado "interno" o "Interno"
       const val = r.interno !== undefined ? r.interno : r.Interno;
       r.interno = String(val||'').toLowerCase().trim()==='si';
@@ -309,7 +310,7 @@ function render(){
 
   // DETALLE (movimientos del periodo, orden seleccionable)
   const det=[...rows].sort((a,b)=>
-    ordenMov==='monto' ? b.monto_usd-a.monto_usd : b.fecha.localeCompare(a.fecha)
+    ordenMov==='monto' ? b.monto_usd-a.monto_usd : b.fechaFull.localeCompare(a.fechaFull)
   ).slice(0,40);
   const ordenTxt = ordenMov==='monto' ? '40 de mayor monto' : '40 más recientes';
   html+=`<div class="section">
