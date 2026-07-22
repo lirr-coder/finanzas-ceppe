@@ -265,12 +265,16 @@ function render(){
     return;
   }
 
-  // DISTRIBUCION por unidad (o por categoria/motivo si ya se filtró una unidad)
-  const agrupaPor = u ? (esIng?'motivo':'categoria') : 'unidad';
+  // DISTRIBUCION por unidad (o por cliente/servicio si ya se filtró una unidad)
+  // CEPPE Media y personas: los ingresos guardan "Cliente - Servicio" en categoria.
+  // Si categoria está vacía (data vieja), cae al motivo.
+  const agrupaPorCategoria = esIng && (u==="CEPPE Media" || u==="William Rodríguez" ||
+    u==="Rebeca Rodríguez" || u==="Luis Rodríguez" || u==="Becca Rodríguez");
+  const agrupaPor = u ? (agrupaPorCategoria ? 'categoria' : (esIng?'motivo':'categoria')) : 'unidad';
   const grupos={};
   rows.forEach(r=>{
-    let k=r[agrupaPor]||'(sin especificar)';
-    if(agrupaPor==='categoria' && !r.categoria) k=r.motivo||'(sin categoría)';
+    let k=r[agrupaPor]||'';
+    if(!k) k = r.categoria || r.motivo || '(sin especificar)';
     grupos[k]=(grupos[k]||0)+r.monto_usd;
   });
   const ranked=Object.entries(grupos).sort((a,b)=>b[1]-a[1]);
