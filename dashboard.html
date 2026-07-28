@@ -106,7 +106,7 @@
       <h1>Finanzas CEPPE</h1>
       <div class="sub" id="sub">Cargando datos en vivo…</div>
     </div>
-    <button class="refresh" onclick="cargar()">↻ Actualizar</button>
+    <button class="refresh" onclick="actualizar()">↻ Actualizar</button>
   </div>
 
   <div class="filters">
@@ -118,21 +118,22 @@
     </div>
     <div class="fgroup">
       <label>Desde</label>
-      <input type="date" id="fDesde" onchange="render()">
+      <input type="date" id="fDesde" onchange="cambioFecha()">
     </div>
     <div class="fgroup">
       <label>Hasta</label>
-      <input type="date" id="fHasta" onchange="render()">
+      <input type="date" id="fHasta" onchange="cambioFecha()">
     </div>
     <div class="fgroup">
       <label>Rango rápido</label>
       <select id="fRango" onchange="rangoRapido()">
+        <option value="">Personalizado</option>
         <option value="ytd">Todo el año</option>
         <option value="hoy">Hoy</option>
         <option value="ayer">Ayer</option>
         <option value="semana">Esta semana</option>
         <option value="semanaant">Semana anterior</option>
-        <option value="mes">Este mes</option>
+        <option value="mes" selected>Este mes</option>
         <option value="mesant">Mes anterior</option>
         <option value="30">Últimos 30 días</option>
       </select>
@@ -155,23 +156,35 @@ const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov'
 let DATA = [];
 let tab = "ingreso";
 let ordenMov = "monto"; // "monto" o "fecha"
+let rangoCargado = "mes"; // qué se pidió al servidor: "mes" o "todo" o un rango
 
-async function cargar(){
+// cargar(opciones): {todo:true} trae todo el histórico; {desde,hasta} un rango; nada = mes actual
+async function cargar(opciones){
+  opciones = opciones || {};
   document.getElementById('content').innerHTML='<div class="loading">Cargando…</div>';
   try{
-    const res = await fetch(ENDPOINT);
+    let url = ENDPOINT;
+    if(opciones.todo){
+      url += "?todo=1";
+      rangoCargado = "todo";
+    }else if(opciones.desde || opciones.hasta){
+      url += "?desde="+(opciones.desde||"")+"&hasta="+(opciones.hasta||"");
+      rangoCargado = "rango";
+    }else{
+      rangoCargado = "mes";
+    }
+    const res = await fetch(url);
     DATA = await res.json();
     DATA.forEach(r=>{
       r.monto = Number(r.monto)||0;
       r.monto_usd = Number(r.monto_usd)||r.monto;
-      r.fechaFull = String(r.fecha);           // fecha+hora completa para ordenar
-      r.fecha = String(r.fecha).slice(0,10);   // solo día para mostrar y filtrar
-      // tolera encabezado "interno" o "Interno"
+      r.fechaFull = String(r.fecha);
+      r.fecha = String(r.fecha).slice(0,10);
       const val = r.interno !== undefined ? r.interno : r.Interno;
       r.interno = String(val||'').toLowerCase().trim()==='si';
     });
     poblarUnidades();
-    setRangoDefault();
+    if(!opciones.mantenerRango) setRangoDefault();
     document.getElementById('sub').textContent =
       DATA.length+' movimientos · actualizado '+new Date().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
     render();
@@ -189,17 +202,18 @@ function poblarUnidades(){
 }
 
 function setRangoDefault(){
-  const fechas=DATA.map(r=>r.fecha).filter(Boolean).sort();
-  if(fechas.length){
-    document.getElementById('fDesde').value=fechas[0];
-    document.getElementById('fHasta').value=fechas[fechas.length-1];
-  }
+  // Por defecto muestra el mes actual (que es lo que trae el servidor al abrir)
+  const hoy=new Date();
+  const y=hoy.getFullYear();
+  const m=("0"+(hoy.getMonth()+1)).slice(-2);
+  document.getElementById('fDesde').value = y+"-"+m+"-01";
+  document.getElementById('fHasta').value = hoy.toISOString().slice(0,10);
+  document.getElementById('fRango').value = "mes";
 }
 function rangoRapido(){
   const v=document.getElementById('fRango').value;
   const hoy=new Date();
   const fmt=d=>d.toISOString().slice(0,10);
-  const fechas=DATA.map(r=>r.fecha).filter(Boolean).sort();
   let desde,hasta=fmt(hoy);
 
   // lunes de la semana de una fecha dada
@@ -210,8 +224,13 @@ function rangoRapido(){
     return d;
   };
 
-  if(v==='ytd'){ desde=fechas[0]; hasta=fechas[fechas.length-1]; }
-  else if(v==='hoy'){ desde=fmt(hoy); hasta=fmt(hoy); }
+  // "Todo el año" pide TODO al servidor
+  if(v==='ytd'){
+    cargar({todo:true, mantenerRango:false});
+    return;
+  }
+
+  if(v==='hoy'){ desde=fmt(hoy); hasta=fmt(hoy); }
   else if(v==='ayer'){ const d=new Date(hoy); d.setDate(d.getDate()-1); desde=fmt(d); hasta=fmt(d); }
   else if(v==='semana'){ desde=fmt(lunesDe(hoy)); hasta=fmt(hoy); }
   else if(v==='semanaant'){
@@ -223,9 +242,36 @@ function rangoRapido(){
   else if(v==='mes'){ desde=fmt(new Date(hoy.getFullYear(),hoy.getMonth(),1)); }
   else if(v==='mesant'){ desde=fmt(new Date(hoy.getFullYear(),hoy.getMonth()-1,1)); hasta=fmt(new Date(hoy.getFullYear(),hoy.getMonth(),0)); }
   else if(v==='30'){ const d=new Date(hoy); d.setDate(d.getDate()-30); desde=fmt(d); }
+
   document.getElementById('fDesde').value=desde;
   document.getElementById('fHasta').value=hasta;
-  render();
+
+  // ¿el rango pedido está dentro de lo ya cargado? Si no, pide al servidor.
+  const cargadoDesde = rangoCargado==='todo' ? '2000-01-01'
+    : (document.getElementById('fDesde').dataset.cargado || mesActualInicio());
+  if(rangoCargado!=='todo' && desde < mesActualInicio()){
+    // el rango empieza antes del mes actual: pedir ese rango al servidor
+    cargar({desde:desde, hasta:hasta, mantenerRango:true});
+  }else{
+    render(); // está dentro de lo cargado, filtra local
+  }
+}
+
+function mesActualInicio(){
+  const h=new Date();
+  return h.getFullYear()+"-"+("0"+(h.getMonth()+1)).slice(-2)+"-01";
+}
+
+// Cuando cambian las fechas a mano: si el rango sale del mes actual y no tenemos "todo", pide al servidor
+function cambioFecha(){
+  const desde=document.getElementById('fDesde').value;
+  const hasta=document.getElementById('fHasta').value;
+  document.getElementById('fRango').value=""; // ya no es un rango rápido predefinido
+  if(rangoCargado!=='todo' && desde && desde < mesActualInicio()){
+    cargar({desde:desde, hasta:hasta, mantenerRango:true});
+  }else{
+    render();
+  }
 }
 
 document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>{
@@ -362,6 +408,18 @@ function render(){
   html+=`</tbody></table></div></div>`;
 
   document.getElementById('content').innerHTML=html;
+}
+
+// Recarga respetando lo que se está viendo
+function actualizar(){
+  if(rangoCargado==='todo'){ cargar({todo:true, mantenerRango:true}); return; }
+  const desde=document.getElementById('fDesde').value;
+  const hasta=document.getElementById('fHasta').value;
+  if(desde && desde < mesActualInicio()){
+    cargar({desde:desde, hasta:hasta, mantenerRango:true});
+  }else{
+    cargar({mantenerRango:true});
+  }
 }
 
 cargar();
