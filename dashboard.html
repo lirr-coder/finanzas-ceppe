@@ -184,7 +184,16 @@ async function cargar(opciones){
       r.interno = String(val||'').toLowerCase().trim()==='si';
     });
     poblarUnidades();
-    if(!opciones.mantenerRango) setRangoDefault();
+    if(opciones.todo){
+      // Al traer todo, abrir el rango de fechas a toda la data (de la más vieja a la más nueva)
+      const fechas=DATA.map(r=>r.fecha).filter(Boolean).sort();
+      if(fechas.length){
+        document.getElementById('fDesde').value=fechas[0];
+        document.getElementById('fHasta').value=fechas[fechas.length-1];
+      }
+    }else if(!opciones.mantenerRango){
+      setRangoDefault();
+    }
     document.getElementById('sub').textContent =
       DATA.length+' movimientos · actualizado '+new Date().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
     render();
@@ -224,9 +233,9 @@ function rangoRapido(){
     return d;
   };
 
-  // "Todo el año" pide TODO al servidor
+  // "Todo el año" pide TODO al servidor y abre el rango completo
   if(v==='ytd'){
-    cargar({todo:true, mantenerRango:false});
+    cargar({todo:true});
     return;
   }
 
