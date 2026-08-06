@@ -312,6 +312,13 @@
 // Cuando el Sheet esté listo, pega aquí la URL del Apps Script Web App:
 const SHEET_ENDPOINT = "https://script.google.com/macros/s/AKfycbw-5SF_I_ES5gFyUIC7KmYxQIuoZzWMP53TS9nHi5M-nswAiDBUI9lStqYs71r7rGnH/exec";
 
+// Genera fecha-hora en formato que Google Sheets reconoce como fecha nativa: "YYYY-MM-DD HH:MM:SS"
+function fechaLocal(){
+  const d = new Date();
+  const p = n => ("0"+n).slice(-2);
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());
+}
+
 const state = { tipo:"gasto", unidad:null, categoria:null };
 
 const segBtns   = document.querySelectorAll("#seg button");
@@ -444,7 +451,7 @@ submitBtn.addEventListener("click", async ()=>{
   }
 
   const payload = {
-    fecha: new Date().toISOString(),
+    fecha: fechaLocal(),
     tipo: state.tipo,
     unidad: state.unidad,
     categoria: categoria,
