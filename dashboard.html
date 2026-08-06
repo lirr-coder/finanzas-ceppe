@@ -163,16 +163,19 @@ async function cargar(opciones){
   opciones = opciones || {};
   document.getElementById('content').innerHTML='<div class="loading">Cargando…</div>';
   try{
-    let url = ENDPOINT;
+    let params = [];
     if(opciones.todo){
-      url += "?todo=1";
+      params.push("todo=1");
       rangoCargado = "todo";
     }else if(opciones.desde || opciones.hasta){
-      url += "?desde="+(opciones.desde||"")+"&hasta="+(opciones.hasta||"");
+      if(opciones.desde) params.push("desde="+opciones.desde);
+      if(opciones.hasta) params.push("hasta="+opciones.hasta);
       rangoCargado = "rango";
     }else{
       rangoCargado = "mes";
     }
+    if(opciones.fresh) params.push("fresh=1");   // botón Actualizar: data fresca, sin caché
+    let url = ENDPOINT + (params.length ? "?"+params.join("&") : "");
     const res = await fetch(url);
     DATA = await res.json();
     DATA.forEach(r=>{
@@ -419,15 +422,15 @@ function render(){
   document.getElementById('content').innerHTML=html;
 }
 
-// Recarga respetando lo que se está viendo
+// Recarga respetando lo que se está viendo, pidiendo data FRESCA (sin caché)
 function actualizar(){
-  if(rangoCargado==='todo'){ cargar({todo:true, mantenerRango:true}); return; }
+  if(rangoCargado==='todo'){ cargar({todo:true, mantenerRango:true, fresh:true}); return; }
   const desde=document.getElementById('fDesde').value;
   const hasta=document.getElementById('fHasta').value;
   if(desde && desde < mesActualInicio()){
-    cargar({desde:desde, hasta:hasta, mantenerRango:true});
+    cargar({desde:desde, hasta:hasta, mantenerRango:true, fresh:true});
   }else{
-    cargar({mantenerRango:true});
+    cargar({mantenerRango:true, fresh:true});
   }
 }
 
